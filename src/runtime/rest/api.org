@@ -1,0 +1,116 @@
+#+TITLE: The Analytics REST API
+#+AUTHOR: VLEAD
+#+DATE: [2016-07-26 Tue]
+#+SETUPFILE: ../../org-templates/level-2.org
+#+TAGS: boilerplate(b)
+#+EXCLUDE_TAGS: boilerplate
+#+OPTIONS: ^:nil
+
+* Introduction 
+  This document illustrates building of the Analytics REST API.
+
+
+* Analytics REST
+  
+** Fetch analytis 
+   + Route/API to fetch analytics from Open edX.  OpenedX POSTs data
+     to analytics server API. Data POSTed is in the url.  Analytics
+     server further converts that data into JSON and sends POST it to
+     Elasticsearch database.
+   + IP address of the Client making the request is evaluated by
+     Analytics server.
+   + Location of the Client is idenfied using an available opensource API 
+     http://freegeoip.net/json/ 
+   + Following sample analytics is captured in JSON format -
+     #+BEGIN_SRC command
+     {
+    "DATE_OF_EXPERIMENT": "30-8-2016",
+    "LAB_NAME": "PopulationEcologyII",
+    "EXPERIMENT_NAME": "OptimalforagingSitAndWaitPredators",
+    "TIME_OF_EXPERIMENT": "19:49",
+    "COURSE_ID": "blockv1UniversityYPS01Anytime",
+    "IP_ADDRESS": "196.12.53.130"
+    "Location" : "Telengana"
+    }
+     #+END_SRC
+  
+#+NAME: get_analytics
+#+BEGIN_SRC python
+#elastic_host = "http://vlabs-analytics.vlabs.ac.in"
+#elastic_port =  9400
+elastic_index = "vlabs"
+elastic_doc_type = "usage"
+url = "http://vlabs-analytics.vlabs.ac.in:9200/" + elastic_index + "/" + elastic_doc_type
+headers = {"Content-type":"application/json", "Accept":"text/plain"}
+
+
+@api.route('/<analytics>',methods= ['GET','POST'])
+def fetch_analytics(analytics):
+        data = request.data
+        fetch_data = analytics
+        data_list = fetch_data.split(",") 
+        data_dict = {}
+        today = str(datetime.date.today())https://github.com/openedx-vlead/vlans-analytics-api-for-portable-media.git
+        data_dict["STUDENT_ID"] = data_list[0]
+        data_dict["LAB_ID"] = data_list[1]
+        data_dict["LAB_NAME"] = data_list[2]
+        #data_dict["EXPERIMENT_NAME"] = data_list[3] + "-" + data_list[2]
+        #data_dict["EXPERIMENT_ID"] = data_list[4]
+        data_dict["EXPERIMENT_ID"] = data_list[3]
+        data_dict["EXPERIMENT_NAME"] = data_list[4]
+        data_dict["DATE_OF_EXPERIMENT"] = today
+        data_dict["TIME_OF_EXPERIMENT"] = time.strftime("%H:%M")
+        data_dict["IP_ADDRESS"] = request.environ.get('HTTP_X_REAL_IP',request.remote_addr)
+   
+        #Commented as ip cannot be identified in portable media version 
+        #res = requests.get("http://freegeoip.net/json/" + data_dict["IP_ADDRESS"])
+        #data = res.text
+        #ip_dir = ast.literal_eval(data)
+        ip_dir = "anonymous"
+        
+        json_data = json.dumps(data_dict)
+       
+        res = requests.post(url, data=json_data, headers=headers)
+
+
+          
+   
+   
+        return "Hello {}!".format(analytics) 
+   
+ #+END_SRC
+
+   
+   
+* Infra                                                         :boilerplate:
+** sources
+*** Imports 
+#+name: imports_for_sources
+#+BEGIN_SRC python
+# -*- coding: utf-8 -*-
+import os
+import json
+import time
+import datetime
+import os
+from runtime.config.flask_app_config import *
+from flask import send_from_directory, current_app
+from flask import request, Blueprint
+from elasticsearch import Elasticsearch
+import requests
+import ast
+api = Blueprint('APIs', __name__)
+
+#+end_src
+
+
+* Tangle                                                        :boilerplate:
+
+** sources
+#+BEGIN_SRC python :tangle api.py :eval no :noweb yes
+<<imports_for_sources>>
+<<get_analytics>>
+#+END_SRC
+
+
+
